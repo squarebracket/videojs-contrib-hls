@@ -174,6 +174,19 @@ export default class SegmentLoader extends videojs.EventTarget {
 
     this.mediaSource_.addEventListener('sourceopen', () => this.ended_ = false);
 
+    if (this.loaderType_ === 'main') {
+      // Store playback rate and set it to zero on seek so that we can control
+      // when buffering will end
+      this.hls_.tech_.on('seeking', () => {
+        let playbackRate = this.hls_.tech_.playbackRate();
+
+        if (playbackRate !== 0) {
+          this.playbackRate_ = playbackRate;
+          this.hls_.tech_.setPlaybackRate(0);
+        }
+      });
+    }
+
     // ...for determining the fetch location
     this.fetchAtBuffer_ = false;
 
@@ -1215,6 +1228,14 @@ export default class SegmentLoader extends videojs.EventTarget {
     // and attempt to resync when the post-update seekable window and live
     // point would mean that this was the perfect segment to fetch
     this.trigger('syncinfoupdate');
+
+    if (this.loaderType_ === 'main' && this.hls_.tech_.playbackRate() === 0) {
+      let buffered = this.buffered_();
+
+      if ((buffered.end(0) - this.currentTime_()) >= this.playlist_.targetDuration) {
+        this.hls_.tech_.setPlaybackRate(this.playbackRate_);
+      }
+    }
 
     // If we previously appended a segment that ends more than 3 targetDurations before
     // the currentTime_ that means that our conservative guess was too conservative.
