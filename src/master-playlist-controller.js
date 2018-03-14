@@ -641,6 +641,10 @@ export class MasterPlaylistController extends videojs.EventTarget {
     this.audioSegmentLoader_.on('ended', () => {
       this.onEndOfStream();
     });
+
+    this.mainSegmentLoader_.on('buffered', this.seekResume.bind(this));
+    this.audioSegmentLoader_.on('buffered', this.seekResume.bind(this));
+    this.subtitleSegmentLoader_.on('buffered', this.seekResume.bind(this));
   }
 
   mediaSecondsLoaded_() {
@@ -925,6 +929,20 @@ export class MasterPlaylistController extends videojs.EventTarget {
     }
   }
 
+  seekResume() {
+    if (!this.mainSegmentLoader_.canPlayThrough()) {
+      return;
+    }
+    if (this.mediaTypes_.AUDIO.activePlaylistLoader &&
+        !this.audioSegmentLoader_.canPlayThrough()) {
+      return;
+    } else if (this.mediaTypes_.SUBTITLES.activePlaylistLoader &&
+        !this.subtitleSegmentLoader_.canPlayThrough()) {
+      return;
+    }
+    this.tech_.setPlaybackRate(this.playbackRate);
+  }
+
   /**
    * set the current time on all segment loaders
    *
@@ -951,6 +969,11 @@ export class MasterPlaylistController extends videojs.EventTarget {
     if (buffered && buffered.length && this.mode_ !== 'flash') {
       return currentTime;
     }
+
+    // Store playback rate and set it to zero so that we can control when
+    // buffering will end
+    this.playbackRate = this.tech_.playbackRate();
+    this.tech_.setPlaybackRate(0);
 
     // cancel outstanding requests so we begin buffering at the new
     // location

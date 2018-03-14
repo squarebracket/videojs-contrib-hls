@@ -272,6 +272,16 @@ export default class SegmentLoader extends videojs.EventTarget {
     this.trigger('ended');
   }
 
+  canPlayThrough() {
+    let buffered = this.buffered_();
+
+    if (buffered.length < 1) {
+      return false;
+    }
+
+    return (buffered.end(0) - this.currentTime_()) >= this.playlist_.targetDuration;
+  }
+
   /**
    * Indicates which time ranges are buffered
    *
@@ -1215,6 +1225,10 @@ export default class SegmentLoader extends videojs.EventTarget {
     // and attempt to resync when the post-update seekable window and live
     // point would mean that this was the perfect segment to fetch
     this.trigger('syncinfoupdate');
+
+    if (this.hls_.tech_.playbackRate() === 0) {
+      this.trigger('buffered', this);
+    }
 
     // If we previously appended a segment that ends more than 3 targetDurations before
     // the currentTime_ that means that our conservative guess was too conservative.
